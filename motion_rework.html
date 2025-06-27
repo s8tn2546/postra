@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>POSTRA - AI Fitness Form Assistant</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+   <link rel="stylesheet" href="/motion_r.css">
+ 
+</head>
+<body>
+  <header>
+    <div class="nav-container">
+      <div class="logo">POSTRA</div>
+        <nav class="nav">
+          <a href="/home.html">Home</a>
+          <a href="/about.html">About</a>
+          <a class="active" href="/motion_rework.html">Start Training</a>
+                
+        </nav>
+    </div>
+  </header>
+
+  <div class="main-content">
+    <div class="app-title">
+      <h1>AI Fitness Form Assistant</h1>
+      <p>Real-time posture correction with accurate rep counting and voice guidance</p>
+    </div>
+
+    <div class="control-panel">
+      <div class="controls-grid">
+        <div class="control-group">
+          <label for="exercise-select">Exercise:</label>
+          <select id="exercise-select">
+            <option value="squat">Squats</option>
+            <option value="pushup">Push-ups</option>
+            <option value="jumpingJack">Jumping Jacks</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <button id="start-btn" class="btn-primary">
+            <i class="fas fa-play-circle"></i> Start Training
+          </button>
+        </div>
+        <div class="control-group">
+          <button id="reset-btn" class="btn-secondary">
+            <i class="fas fa-redo"></i> Reset
+          </button>
+          <button id="audio-btn" class="btn-secondary">
+            <i class="fas fa-volume-up"></i> Voice On
+          </button>
+        </div>
+      </div>
+      <div class="status-badges">
+        <div id="camera-status" class="status-badge">
+          <div class="status-dot loading"></div>
+          <span>Initializing Camera...</span>
+        </div>
+        <div id="ai-status" class="status-badge">
+          <div class="status-dot loading"></div>
+          <span>Loading AI Model...</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="app-grid">
+      <div class="video-section">
+        <div class="video-container">
+          <video id="video" autoplay muted playsinline></video>
+          <canvas id="canvas"></canvas>
+          <div class="video-overlay">
+            <div class="overlay-badge" id="detection-status">Ready</div>
+            <div class="overlay-badge" id="exercise-status">Select Exercise</div>
+          </div>
+        </div>
+        <div class="rep-counter">
+          <div class="rep-count" id="rep-count">0
+            <span class="rep-animation" id="rep-animation"></span>
+          </div>
+          <div class="rep-label">Reps Completed</div>
+          <div class="rep-progress">
+            <div class="rep-progress-bar" id="rep-progress-bar"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="feedback-section">
+        <div class="feedback-card">
+          <h3><i class="fas fa-bullseye"></i> Live Form Feedback</h3>
+          <div class="current-feedback" id="current-feedback">
+            Start training to get real-time form guidance
+          </div>
+          <div class="form-meter">
+            <div class="meter-header">
+              <span>Form Quality</span>
+              <span id="form-score">--</span>
+            </div>
+            <div class="meter-bar">
+              <div class="meter-fill" id="meter-fill"></div>
+            </div>
+          </div>
+          <div class="feedback-list" id="feedback-list">
+            <div class="feedback-placeholder">
+              Detailed feedback will appear here during your workout
+            </div>
+          </div>
+        </div>
+
+        <div class="feedback-card">
+          <h3><i class="fas fa-lightbulb"></i> Exercise Tips</h3>
+          <ul class="tips-list" id="tips-list">
+            <li>Keep your back straight and core engaged</li>
+            <li>Control the movement - don't rush</li>
+            <li>Focus on proper breathing technique</li>
+            <li>Maintain consistent form throughout</li>
+          </ul>
+        </div>
+
+        <div class="privacy-notice">
+          <h4><i class="fas fa-lock"></i> Privacy Protected</h4>
+          <p>All processing happens locally in your browser. No video data is uploaded or stored.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.6.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@4.6.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.6.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.0.0"></script>
+<script>
+    // DOM Elements
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const startBtn = document.getElementById('start-btn');
+    const resetBtn = document.getElementById('reset-btn');
+    const audioBtn = document.getElementById('audio-btn');
+    const repCountElem = document.getElementById('rep-count');
+    const formScoreElem = document.getElementById('form-score');
+    const meterFill = document.getElementById('meter-fill');
+    const repProgressBar = document.getElementById('rep-progress-bar');
+    const feedbackList = document.getElementById('feedback-list');
+    const currentFeedback = document.getElementById('current-feedback');
+    const exerciseSelect = document.getElementById('exercise-select');
+    const cameraStatus = document.getElementById('camera-status');
+    const aiStatus = document.getElementById('ai-status');
+    const detectionStatus = document.getElementById('detection-status');
+    const exerciseStatus = document.getElementById('exercise-status');
+    const tipsList = document.getElementById('tips-list');
+
+    // App State
+    let detector;
+    let isDetecting = false;
+    let repCount = 0;
+    let animationId;
+    let audioEnabled = true;
+    let lastFeedback = '';
+    let lastFeedbackTime = 0;
+    let currentExercise = 'squat';
+
+    // Exercise state tracking
+    let pushupState = { goingDown: false, lastElbowAngle: null, goodFormCount: 0 };
+    let squatState = { goingDown: false, lastKneeAngle: null, goodFormCount: 0 };
+    let jumpingJackState = { legsOpen: false, armsOpen: false };
+
+    // Exercise tips database
+    const exerciseTips = {
+      squat: [
+        "Keep your back straight and chest up",
+        "Don't let knees go past your toes",
+        "Lower until thighs are parallel to ground",
+        "Push through your heels to return up",
+        "Keep your core engaged throughout"
+      ],
+      pushup: [
+        "Keep your body in a straight line",
+        "Lower your chest to the ground",
+        "Push up with control, don't rush",
+        "Keep your core tight and engaged",
+        "Breathe out as you push up"
+      ],
+      jumpingJack: [
+        "Jump with feet wide, arms overhead",
+        "Land softly on the balls of your feet",
+        "Keep your core engaged",
+        "Maintain a steady rhythm",
+        "Breathe consistently throughout"
+      ]
+    };
+
+    // Camera and Model Initialization
+    async function setupCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 640, height: 480, facingMode: "user" },
+          audio: false
+        });
+        video.srcObject = stream;
+        return new Promise(resolve => {
+          video.onloadedmetadata = () => {
+            video.play();
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            resolve(video);
+          };
+        });
+      } catch (err) {
+        updateStatus('camera', 'error', 'Camera Error');
+        alert("Could not access the camera. Please check permissions and try again.");
+        return null;
+      }
+    }
+
+    async function initPoseDetector() {
+      await tf.ready();
+      const model = poseDetection.SupportedModels.MoveNet;
+      const detectorConfig = {
+        modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
+        enableSmoothing: true,
+      };
+      try {
+        detector = await poseDetection.createDetector(model, detectorConfig);
+        updateStatus('ai', 'ready', 'AI Ready');
+      } catch (err) {
+        updateStatus('ai', 'error', 'AI Error');
+        alert("Failed to initialize pose detection.");
+      }
+    }
+
+    function updateStatus(type, status, text) {
+      const el = type === 'camera' ? cameraStatus : aiStatus;
+      const dot = el.querySelector('.status-dot');
+      const label = el.querySelector('span');
+      dot.className = `status-dot ${status}`;
+      label.textContent = text;
+    }
+
+    // Drawing functions
+    const CONNECTED_KEYPOINTS = [
+      [5, 6], [5, 11], [6, 12], [11, 12], // Torso
+      [5, 7], [7, 9], // Left arm
+      [6, 8], [8, 10], // Right arm
+      [11, 13], [13, 15], // Left leg
+      [12, 14], [14, 16] // Right leg
+    ];
+
+    function drawKeypoints(keypoints) {
+      // Draw skeleton
+      ctx.save();
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "#00D4FF";
+      CONNECTED_KEYPOINTS.forEach(([i, j]) => {
+        const kp1 = keypoints[i];
+        const kp2 = keypoints[j];
+        if (kp1.score > 0.4 && kp2.score > 0.4) {
+          ctx.beginPath();
+          ctx.moveTo(kp1.x, kp1.y);
+          ctx.lineTo(kp2.x, kp2.y);
+          ctx.stroke();
+        }
+      });
+      ctx.restore();
+
+      // Draw joints
+      ctx.save();
+      keypoints.forEach(point => {
+        if (point.score > 0.4) {
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, 7, 0, 2 * Math.PI);
+          ctx.fillStyle = "#00D4FF";
+          ctx.shadowColor = "#00D4FF";
+          ctx.shadowBlur = 8;
+          ctx.fill();
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = "#fff";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+      });
+      ctx.restore();
+    }
+
+    // Math utilities
+    function calculateAngle(a, b, c) {
+      const radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
+      let angle = Math.abs(radians * 180.0 / Math.PI);
+      if (angle > 180) angle = 360 - angle;
+      return angle;
+    }
+
+    function distance(a, b) {
+      return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+    }
+
+    // Rep counting and form analysis
+    let lastRepTimestamp = 0;
+    const REP_DEBOUNCE_MS = 800;
+
+    function canCountRep() {
+      const now = Date.now();
+      if (now - lastRepTimestamp > REP_DEBOUNCE_MS) {
+        lastRepTimestamp = now;
+        return true;
+      }
+      return false;
+    }
+
+    function analyzeSquatForm(keypoints) {
+      const leftHip = keypoints[11];
+      const leftKnee = keypoints[13];
+      const leftAnkle = keypoints[15];
+      const rightHip = keypoints[12];
+      const rightKnee = keypoints[14];
+      const rightAnkle = keypoints[16];
+
+      const leftAngle = calculateAngle(leftHip, leftKnee, leftAnkle);
+      const rightAngle = calculateAngle(rightHip, rightKnee, rightAnkle);
+      const avgAngle = (leftAngle + rightAngle) / 2;
+
+      let feedback = 'Maintain form';
+      let score = 0;
+
+      if (avgAngle < 90) {
+        feedback = 'Great Squat!';
+        score = 100;
+        if (!squatState.goingDown) {
+          squatState.goingDown = true;
+        }
+      } else if (avgAngle > 160 && squatState.goingDown) {
+        squatState.goingDown = false;
+        if (canCountRep()) repCount++;
+      } else {
+        feedback = 'Go lower';
+        score = 50;
+      }
+
+      return { angle: avgAngle, feedback, score };
+    }
+
+    function analyzePushupForm(keypoints) {
+      const shoulder = keypoints[6];
+      const elbow = keypoints[8];
+      const wrist = keypoints[10];
+
+      const angle = calculateAngle(shoulder, elbow, wrist);
+      let feedback = 'Maintain form';
+      let score = 0;
+
+      if (angle < 90) {
+        feedback = 'Great Push-up!';
+        score = 100;
+        if (!pushupState.goingDown) {
+          pushupState.goingDown = true;
+        }
+      } else if (angle > 150 && pushupState.goingDown) {
+        pushupState.goingDown = false;
+        if (canCountRep()) repCount++;
+      } else {
+        feedback = 'Lower down more';
+        score = 50;
+      }
+
+      return { angle, feedback, score };
+    }
+
+
+    async function detectPose() {
+      if (!detector) return;
+
+      const poses = await detector.estimatePoses(video);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (poses.length > 0) {
+        const keypoints = poses[0].keypoints;
+        drawKeypoints(keypoints);
+
+        let requiredIndices = [];
+        if (currentExercise === 'squat') {
+          requiredIndices = [11, 12, 13, 14, 15, 16];
+        } else if (currentExercise === 'pushup') {
+          requiredIndices = [6, 8, 10];
+        } else if (currentExercise === 'jumpingJack') {
+          requiredIndices = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+        }
+
+        if (allKeypointsActive(keypoints, requiredIndices)) {
+          let result;
+          if (currentExercise === 'squat') {
+            result = analyzeSquatForm(keypoints);
+          } else if (currentExercise === 'pushup') {
+            result = analyzePushupForm(keypoints);
+          }
+
+          if (result) updateUI(result.feedback, result.score);
+        } else {
+          updateUI('Ensure your full body is visible to the camera', 0);
+        }
+      }
+
+      animationId = requestAnimationFrame(detectPose);
+    }
+
+    function allKeypointsActive(keypoints, indices = null, minScore = 0.4) {
+      const points = indices ? indices.map(i => keypoints[i]) : keypoints;
+      return points.every(kp => kp && kp.score > minScore);
+    }
+
+    startBtn.onclick = async () => {
+    if (!isDetecting) {
+        isDetecting = true;
+        startBtn.innerHTML = `<i class="fas fa-stop"></i> Stop`;
+        currentExercise = exerciseSelect.value;
+        exerciseStatus.textContent = currentExercise.charAt(0).toUpperCase() + currentExercise.slice(1);
+        tipsList.innerHTML = exerciseTips[currentExercise].map(tip => `<li>${tip}</li>`).join('');
+
+        await setupCamera();
+        await initPoseDetector();
+        detectPose();
+        updateStatus('camera', 'ready', 'Camera Ready');
+    } else {
+        isDetecting = false;
+        startBtn.innerHTML = `<i class="fas fa-play-circle"></i> Start Training`;
+        if (animationId) cancelAnimationFrame(animationId);
+        currentFeedback.textContent = 'Detection stopped. Click Start to resume.';
+    }
+    };
+
+    resetBtn.onclick = () => {
+      repCount = 0;
+      repCountElem.textContent = '0';
+      formScoreElem.textContent = '--';
+      meterFill.style.width = '0%';
+      repProgressBar.style.width = '0%';
+      currentFeedback.textContent = 'Reset complete. Ready to go again!';
+      if (animationId) cancelAnimationFrame(animationId);
+    };
+
+    audioBtn.onclick = () => {
+      audioEnabled = !audioEnabled;
+      audioBtn.innerHTML = `<i class="fas fa-volume-${audioEnabled ? 'up' : 'mute'}"></i> Voice ${audioEnabled ? 'On' : 'Off'}`;
+    };
+
+    function speak(text) {
+        if (!audioEnabled) return;
+        window.speechSynthesis.cancel();
+        const utter = new window.SpeechSynthesisUtterance(text);
+        utter.rate = 1;
+        utter.volume = 1;
+        window.speechSynthesis.speak(utter);
+    }
+
+    function updateUI(feedbackText, score) {
+        repCountElem.textContent = repCount;
+        currentFeedback.textContent = feedbackText;
+        formScoreElem.textContent = `${score}%`;
+        meterFill.style.width = `${score}%`;
+        repProgressBar.style.width = `${Math.min(repCount, 10) * 10}%`;
+
+        if (
+            audioEnabled &&
+            feedbackText &&
+            feedbackText !== lastFeedback &&
+            !['Maintain form', 'Reset complete. Ready to go again!'].includes(feedbackText)
+        ) {
+            speak(feedbackText);
+            lastFeedback = feedbackText;
+        }
+    }
+
+</script>
+</body>
+</html>

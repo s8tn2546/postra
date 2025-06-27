@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POSTRA- Fitness Training</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <header>
+        <div class="nav-container">
+            <div class="logo">POSTRA</div>
+            <nav class="nav">
+                <a class="active" href="/home.html">Home</a>
+                <a href="/about.html">About</a>
+                <a href="/motion_rework.html">Start Training</a>
+                
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero" id="home">
+            <div class="hero-container">
+                <div class="hero-content">
+                    <h1>POSTRA</h1>
+                    <p class="slogan">"Train Smart, Move Right "</p>
+                    <div class="hero-summary">
+                        <p>Revolutionary fitness Trainer that analyzes your movements in real-time. Get personalized feedback, prevent injuries, and optimize your performance with cutting-edge computer vision technology.</p>
+                    </div>
+                    <div class="hero-buttons">
+                        
+                        
+                    </div>
+                </div>
+                <div class="hero-visual">
+                    <div class="hero-card">
+                        <div class="demo-screen">
+                            <div class="demo-bars">
+                                <button class="btn-primary" onclick="startDemo()">Start Training</button>
+                               
+                                
+                            </div>
+                            
+                            <div class="status-indicator">
+                                <div class="status-dot"></div> 
+                                
+                                <span>Analysis Active</span>
+                            </div>
+                        </div>
+                        <h3 style="color: #00D4FF; margin-bottom: 0.5rem;">Real-time Feedback</h3>
+                        <p style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">Movement accuracy: 94%</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="app-overview">
+            <div class="container">
+                <div class="app-content">
+                    <div class="app-image">
+                        <img src="/interface.png" alt="POSTRA App Interface" class="app-screenshot">
+                    </div>
+                    <div class="app-description">
+                        <h2>Experience the Future of Fitness</h2>
+                        <p>POSTRA brings movement analysis right to your device. 
+                           Our intuitive interface combines real-time feedback with easy-to-follow 
+                           instructions, making it simple to perfect your form and achieve your fitness goals.</p>
+                        <ul class="app-features-list">
+                            <li>✓ Easy-to-use interface</li>
+                            <li>✓ Real-time movement tracking</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="features" id="features">
+            <div class="features-container">
+                <h2 class="section-title">Powerful Features</h2>
+                <div class="cards">
+                    <div class="card" onclick="showFeatureDetail('analysis')">
+                        <div class="card-icon">📊</div>
+                        <h3>Movement Analysis</h3>
+                        <p>Advanced computer vision algorithms analyze your form in real-time, identifying areas for improvement and preventing potential injuries before they occur.</p>
+                    </div>
+                    <div class="card" onclick="showFeatureDetail('correction')">
+                        <div class="card-icon">⚡</div>
+                        <h3>Live Correction</h3>
+                        <p>Instant feedback and guidance during your workout sessions, with voice commands and visual cues to help you maintain perfect form throughout your training.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="/home.js"></script>
+</body>
+</html>
