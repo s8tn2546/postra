@@ -1,4 +1,5 @@
 💪 Postra — Your AI Fitness Assistant
+
 FitForm is a browser-based AI fitness coach that uses your webcam to detect posture, count reps, and give real-time audio feedback — all without any wearables or downloads.
 
 🧠 What It Does
