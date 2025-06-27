@@ -3,15 +3,22 @@ FitForm is a browser-based AI fitness coach that uses your webcam to detect post
 
 🧠 What It Does
 > 📸 Accesses your webcam to track your movements using PoseNet (TensorFlow.js)
+> 
 > ✅ Detects correct or incorrect posture
+> 
 > 🔊 Gives audio cues to correct your form in real time
+> 
 > 🔢 Counts reps of exercises like squats and push-ups
+> 
 > 🌐 Fully client-side, runs directly in your browser
 
 🚀 How It Works
 > Pose Detection: Powered by TensorFlow.js and PoseNet to track body landmarks
+> 
 > Form Analysis: Custom rules for posture validation based on joint angles
+> 
 > Audio Feedback: Uses Web Speech API to guide and correct form
+> 
 > Rep Counting: Smart counter detects full-range movements only
 
 💡 Use Cases
