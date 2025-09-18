@@ -364,11 +364,58 @@
       return { angle, feedback, score };
     }
 
+    function analyzeJumpingJackForm(keypoints) {
+    // Indices: 5-leftShoulder, 6-rightShoulder, 7-leftElbow, 8-rightElbow, 9-leftWrist, 10-rightWrist
+    // 11-leftHip, 12-rightHip, 13-leftKnee, 14-rightKnee, 15-leftAnkle, 16-rightAnkle
+
+    const leftAnkle = keypoints[15];
+    const rightAnkle = keypoints[16];
+    const leftWrist = keypoints[9];
+    const rightWrist = keypoints[10];
+    const leftHip = keypoints[11];
+    const rightHip = keypoints[12];
+
+    // Distance between ankles and wrists
+    const ankleDist = distance(leftAnkle, rightAnkle);
+    const hipDist = distance(leftHip, rightHip);
+    const wristYAvg = (leftWrist.y + rightWrist.y) / 2;
+    const shoulderYAvg = (keypoints[5].y + keypoints[6].y) / 2;
+
+    let feedback = 'Maintain rhythm';
+    let score = 0;
+
+    // Legs open if ankles are much wider than hips
+    const legsOpen = ankleDist > hipDist * 1.7;
+    // Arms up if wrists are above shoulders
+    const armsUp = wristYAvg < shoulderYAvg - 30;
+
+    if (legsOpen && armsUp) {
+      feedback = 'Great Jack!';
+      score = 100;
+      if (!jumpingJackState.legsOpen && !jumpingJackState.armsOpen) {
+        jumpingJackState.legsOpen = true;
+        jumpingJackState.armsOpen = true;
+      }
+    } else if (!legsOpen && !armsUp && jumpingJackState.legsOpen && jumpingJackState.armsOpen) {
+      // Count rep when returning to closed position after being open
+      jumpingJackState.legsOpen = false;
+      jumpingJackState.armsOpen = false;
+      if (canCountRep()) repCount++;
+    } else {
+      feedback = 'Open arms and legs wider';
+      score = 50;
+    }
+
+    return { feedback, score };
+  }
+
 
     async function detectPose() {
       if (!detector) return;
 
       const poses = await detector.estimatePoses(video);
+      if (!detector) return;
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       if (poses.length > 0) {
         const keypoints = poses[0].keypoints;
@@ -389,6 +436,8 @@
             result = analyzeSquatForm(keypoints);
           } else if (currentExercise === 'pushup') {
             result = analyzePushupForm(keypoints);
+          } else if (currentExercise === 'jumpingJack') {
+            result = analyzeJumpingJackForm(keypoints);
           }
 
           if (result) updateUI(result.feedback, result.score);
